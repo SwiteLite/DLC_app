@@ -11,7 +11,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'DLD APP',
       theme: ThemeData(
         // This is the theme of your application.
         //
@@ -31,7 +31,7 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: const MyHomePage(title: 'DLC APP'),
     );
   }
 }
@@ -58,6 +58,9 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   int _counter = 0;
 
+  final List<String> _items = ['Item 1', 'Item 2', 'Item 3', 'Item 4'];
+  final TextEditingController _textController = TextEditingController();
+
   void _incrementCounter() {
     setState(() {
       // This call to setState tells the Flutter framework that something has
@@ -69,6 +72,26 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
+  void _addItem( ){
+    setState(() {
+      String newItem = _textController.text;
+      if (newItem.isNotEmpty) {
+        // Ajoutez le texte à la liste
+        _items.add(newItem);
+        // Réinitialisez le champ de texte
+        _textController.clear();
+      }
+    });
+    
+    FocusScope.of(context).unfocus();
+  }
+
+   void _removeItem(int index) {
+    setState(() {
+      _items.removeAt(index);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     // This method is rerun every time setState is called, for instance as done
@@ -77,6 +100,7 @@ class _MyHomePageState extends State<MyHomePage> {
     // The Flutter framework has been optimized to make rerunning build methods
     // fast, so that you can just rebuild anything that needs updating rather
     // than having to individually change instances of widgets.
+
     return Scaffold(
       appBar: AppBar(
         // TRY THIS: Try changing the color here to a specific color (to
@@ -113,14 +137,55 @@ class _MyHomePageState extends State<MyHomePage> {
               '$_counter',
               style: Theme.of(context).textTheme.headlineMedium,
             ),
+            Expanded(
+              child: ListView.builder(
+                itemCount: _items.length,
+                itemBuilder: (context, index) {
+                  return ListTile(
+                    title: Text(_items[index]),
+                    leading: IconButton(
+                      icon: Icon(Icons.delete),
+                      onPressed: (){
+                        _removeItem(index);
+                        print('Suppression de l\'élément à l\'index $index');
+                      },
+                    ),
+                  );
+                },
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _textController,
+                      decoration: InputDecoration(
+                        hintText: 'Enter text',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: 16.0), // Espace entre le texte et le bouton
+                  FloatingActionButton(
+                    onPressed: _addItem,
+                    tooltip: 'Add',
+                    child: const Icon(Icons.add),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
     );
+  }
+
+  @override
+  void dispose() {
+    // Nettoyez le contrôleur lorsque le widget est détruit
+    _textController.dispose();
+    super.dispose();
   }
 }

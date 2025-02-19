@@ -1,4 +1,7 @@
+import 'package:app_flutter/food.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:intl/intl.dart';
 
 void main() {
   runApp(const MyApp());
@@ -13,24 +16,19 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'DLD APP',
       theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
+       localizationsDelegates: [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: [
+        const Locale('fr', ''), // Français
+      ],
+
+
       home: const MyHomePage(title: 'DLC APP'),
     );
   }
@@ -58,37 +56,49 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   int _counter = 0;
 
-  final List<String> _items = ['Item 1', 'Item 2', 'Item 3', 'Item 4'];
-  final TextEditingController _textController = TextEditingController();
+  final List<Food> foodsList = [
+    Food(name: 'Poulet', expirationDate: DateTime.now(), dateAdded: DateTime.now().add(Duration(days: 7))),
+    Food(name: 'Patate', expirationDate: DateTime.now(), dateAdded: DateTime.now().add(Duration(days: 3))),
+    Food(name: 'Merguez', expirationDate: DateTime.now(), dateAdded: DateTime.now().add(Duration(days: 5))),
+  ];
 
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
+  final TextEditingController _textController = TextEditingController();
+  final TextEditingController _dateController = TextEditingController();
+
+  Future<void> _selectDate(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2101),
+    );
+    if (picked != null && picked != DateTime.now()) {
+      setState(() {
+        _dateController.text = DateFormat('dd/MM/yyyy').format(picked);
+      });
+    }
   }
 
-  void _addItem( ){
+  void _addFood(){
     setState(() {
       String newItem = _textController.text;
-      if (newItem.isNotEmpty) {
+      String dateText = _dateController.text;
+      if (newItem.isNotEmpty && dateText.isNotEmpty) {
         // Ajoutez le texte à la liste
-        _items.add(newItem);
+        DateTime expirationDate = DateFormat('dd/MM/yyyy').parse(dateText);
+        foodsList.add(Food(name: newItem, expirationDate: expirationDate, dateAdded: DateTime.now()));
         // Réinitialisez le champ de texte
         _textController.clear();
+        _dateController.clear();
       }
     });
     
     FocusScope.of(context).unfocus();
   }
 
-   void _removeItem(int index) {
+   void _removeFood(int index) {
     setState(() {
-      _items.removeAt(index);
+      foodsList.removeAt(index);
     });
   }
 
@@ -112,41 +122,22 @@ class _MyHomePageState extends State<MyHomePage> {
         title: Text(widget.title),
       ),
       body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
         child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-            const Text(
-              'You have pushed the button this many times:',
-            ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
+
+      
             Expanded(
               child: ListView.builder(
-                itemCount: _items.length,
+                itemCount: foodsList.length,
                 itemBuilder: (context, index) {
                   return ListTile(
-                    title: Text(_items[index]),
+                    title: Text(foodsList[index].name),
+                    subtitle: Text('Expire dans ${foodsList[index].expirationDate.difference(DateTime.now()).inDays} jours, le : ${DateFormat('dd/MM/yyyy').format(foodsList[index].expirationDate)}'),
                     leading: IconButton(
                       icon: Icon(Icons.delete),
                       onPressed: (){
-                        _removeItem(index);
+                        _removeFood(index);
                         print('Suppression de l\'élément à l\'index $index');
                       },
                     ),
@@ -159,17 +150,31 @@ class _MyHomePageState extends State<MyHomePage> {
               child: Row(
                 children: [
                   Expanded(
+                    flex: 5,
                     child: TextField(
                       controller: _textController,
                       decoration: InputDecoration(
-                        hintText: 'Enter text',
+                        hintText: 'Nom de l\'aliment',
                         border: OutlineInputBorder(),
                       ),
                     ),
                   ),
+                  SizedBox(width: 16.0), 
+                  Expanded(
+                    flex: 2,
+                    child: TextField(
+                      controller: _dateController,
+                      decoration: InputDecoration(
+                        hintText: 'DLC',
+                        border: OutlineInputBorder(),
+                      ),
+                      readOnly: true,
+                      onTap: () => _selectDate(context),
+                    ),
+                  ),
                   SizedBox(width: 16.0), // Espace entre le texte et le bouton
                   FloatingActionButton(
-                    onPressed: _addItem,
+                    onPressed: _addFood,
                     tooltip: 'Add',
                     child: const Icon(Icons.add),
                   ),
@@ -186,6 +191,7 @@ class _MyHomePageState extends State<MyHomePage> {
   void dispose() {
     // Nettoyez le contrôleur lorsque le widget est détruit
     _textController.dispose();
+    _dateController.dispose();
     super.dispose();
   }
 }

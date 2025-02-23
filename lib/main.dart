@@ -1,6 +1,8 @@
 import 'package:app_flutter/food.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 import 'package:intl/intl.dart';
 
 void main() {
@@ -16,7 +18,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'DLD APP',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
         useMaterial3: true,
       ),
        localizationsDelegates: [
@@ -37,15 +39,6 @@ class MyApp extends StatelessWidget {
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key, required this.title});
 
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
   final String title;
 
   @override
@@ -54,13 +47,32 @@ class MyHomePage extends StatefulWidget {
 
 
 class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
 
-  final List<Food> foodsList = [
-    Food(name: 'Poulet', expirationDate: DateTime.now(), dateAdded: DateTime.now().add(Duration(days: 7))),
-    Food(name: 'Patate', expirationDate: DateTime.now(), dateAdded: DateTime.now().add(Duration(days: 3))),
-    Food(name: 'Merguez', expirationDate: DateTime.now(), dateAdded: DateTime.now().add(Duration(days: 5))),
-  ];
+  List<Food> foodsList = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFoodsList();
+  }
+
+  Future<void> _loadFoodsList() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? foodsJson = prefs.getString('foodsList');
+    if (foodsJson != null) {
+      List<dynamic> foodsMap = jsonDecode(foodsJson);
+      setState(() {
+        foodsList = foodsMap.map((item) => Food.fromJson(item)).toList();
+        _sortFoodsList();
+      });
+    }
+  }
+
+  Future<void> _saveFoodsList() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String foodsJson = jsonEncode(foodsList.map((item) => item.toJson()).toList());
+    await prefs.setString('foodsList', foodsJson);
+  }
 
   final TextEditingController _textController = TextEditingController();
   final TextEditingController _dateController = TextEditingController();
@@ -90,53 +102,69 @@ class _MyHomePageState extends State<MyHomePage> {
         // Réinitialisez le champ de texte
         _textController.clear();
         _dateController.clear();
+        _saveFoodsList();
+        _sortFoodsList();
       }
     });
     
     FocusScope.of(context).unfocus();
   }
 
-   void _removeFood(int index) {
+  void _removeFood(int index) {
     setState(() {
       foodsList.removeAt(index);
+      _saveFoodsList();
+      _sortFoodsList();
+    });
+  }
+
+  void _sortFoodsList() {
+    setState(() {
+      foodsList.sort((a, b) => a.expirationDate.compareTo(b.expirationDate));
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
+
 
     return Scaffold(
       appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
         title: Text(widget.title),
       ),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-
-      
             Expanded(
               child: ListView.builder(
                 itemCount: foodsList.length,
                 itemBuilder: (context, index) {
+                  int daysToExpire = foodsList[index].expirationDate.difference(DateTime.now()).inDays;
+                  Color subtitleColor; 
+
+                  if (daysToExpire <= 3) {
+                    subtitleColor = Colors.red; // Couleur rouge si la date d'expiration est proche (3 jours ou moins)
+                  } else if (daysToExpire <= 7) {
+                    subtitleColor = Colors.orange; // Couleur orange si la date d'expiration est dans une semaine ou moins
+                  } else {
+                    subtitleColor = Colors.green; // Couleur verte si la date d'expiration est plus éloignée
+                  }
+
                   return ListTile(
-                    title: Text(foodsList[index].name),
-                    subtitle: Text('Expire dans ${foodsList[index].expirationDate.difference(DateTime.now()).inDays} jours, le : ${DateFormat('dd/MM/yyyy').format(foodsList[index].expirationDate)}'),
+                    tileColor: Colors.grey[200],// Couleur de fond alternée
+                    title: Text(
+                      foodsList[index].name,
+                      style: TextStyle(color: Colors.black), // Couleur du texte
+                    ),
+                    subtitle: Text(
+                      'Expire dans $daysToExpire jours, le : ${DateFormat('dd/MM/yyyy').format(foodsList[index].expirationDate)}',
+                      style: TextStyle(color: subtitleColor), // Couleur du sous-texte
+                    ),
                     leading: IconButton(
-                      icon: Icon(Icons.delete),
-                      onPressed: (){
+                      icon: Icon(Icons.delete, color: Colors.black), // Couleur de l'icône
+                      onPressed: () {
                         _removeFood(index);
                         print('Suppression de l\'élément à l\'index $index');
                       },
@@ -147,38 +175,40 @@ class _MyHomePageState extends State<MyHomePage> {
             ),
             Padding(
               padding: const EdgeInsets.all(16.0),
-              child: Row(
-                children: [
-                  Expanded(
-                    flex: 5,
-                    child: TextField(
-                      controller: _textController,
-                      decoration: InputDecoration(
-                        hintText: 'Nom de l\'aliment',
-                        border: OutlineInputBorder(),
+              child: Container(
+                child: Row(
+                  children: [
+                    Expanded(
+                      flex: 5,
+                      child: TextField(
+                        controller: _textController,
+                        decoration: InputDecoration(
+                          hintText: 'Nom de l\'aliment',
+                          border: OutlineInputBorder(),
+                        ),
                       ),
                     ),
-                  ),
-                  SizedBox(width: 16.0), 
-                  Expanded(
-                    flex: 2,
-                    child: TextField(
-                      controller: _dateController,
-                      decoration: InputDecoration(
-                        hintText: 'DLC',
-                        border: OutlineInputBorder(),
+                    SizedBox(width: 16.0), 
+                    Expanded(
+                      flex: 2,
+                      child: TextField(
+                        controller: _dateController,
+                        decoration: InputDecoration(
+                          hintText: 'DLC',
+                          border: OutlineInputBorder(),
+                        ),
+                        readOnly: true,
+                        onTap: () => _selectDate(context),
                       ),
-                      readOnly: true,
-                      onTap: () => _selectDate(context),
                     ),
-                  ),
-                  SizedBox(width: 16.0), // Espace entre le texte et le bouton
-                  FloatingActionButton(
-                    onPressed: _addFood,
-                    tooltip: 'Add',
-                    child: const Icon(Icons.add),
-                  ),
-                ],
+                    SizedBox(width: 16.0), // Espace entre le texte et le bouton
+                    FloatingActionButton(
+                      onPressed: _addFood,
+                      tooltip: 'Add',
+                      child: const Icon(Icons.add),
+                    ),
+                  ],
+                ),
               ),
             ),
           ],

@@ -1,12 +1,19 @@
 import 'package:app_flutter/food.dart';
+import 'package:app_flutter/food_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:intl/intl.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(
+    ChangeNotifierProvider(
+      create: (context) => FoodProvider(),
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -48,36 +55,17 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
 
-  List<Food> foodsList = [];
 
   @override
   void initState() {
     super.initState();
-    _loadFoodsList();
-  }
 
-  Future<void> _loadFoodsList() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? foodsJson = prefs.getString('foodsList');
-    if (foodsJson != null) {
-      List<dynamic> foodsMap = jsonDecode(foodsJson);
-      setState(() {
-        foodsList = foodsMap.map((item) => Food.fromJson(item)).toList();
-        _sortFoodsList();
-      });
-    }
   }
-
-  Future<void> _saveFoodsList() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String foodsJson = jsonEncode(foodsList.map((item) => item.toJson()).toList());
-    await prefs.setString('foodsList', foodsJson);
-  }
-
-  final TextEditingController _textController = TextEditingController();
-  final TextEditingController _dateController = TextEditingController();
 
   Future<void> _selectDate(BuildContext context) async {
+
+    final foodProvider = Provider.of<FoodProvider>(context, listen: false);
+
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: DateTime.now(),
@@ -85,48 +73,18 @@ class _MyHomePageState extends State<MyHomePage> {
       lastDate: DateTime(2101),
     );
     if (picked != null && picked != DateTime.now()) {
-      setState(() {
-        _dateController.text = DateFormat('dd/MM/yyyy').format(picked);
-      });
+      
+      foodProvider.dateController.text = DateFormat('dd/MM/yyyy').format(picked);
+      foodProvider.addFood(foodProvider.textController.text, foodProvider.dateController.text);
+
+      
     }
   }
 
-  void _addFood(){
-    setState(() {
-      String newItem = _textController.text;
-      String dateText = _dateController.text;
-      if (newItem.isNotEmpty && dateText.isNotEmpty) {
-        // Ajoutez le texte à la liste
-        DateTime expirationDate = DateFormat('dd/MM/yyyy').parse(dateText);
-        foodsList.add(Food(name: newItem, expirationDate: expirationDate, dateAdded: DateTime.now()));
-        // Réinitialisez le champ de texte
-        _textController.clear();
-        _dateController.clear();
-        _saveFoodsList();
-        _sortFoodsList();
-      }
-    });
-    
-    FocusScope.of(context).unfocus();
-  }
-
-  void _removeFood(int index) {
-    setState(() {
-      foodsList.removeAt(index);
-      _saveFoodsList();
-      _sortFoodsList();
-    });
-  }
-
-  void _sortFoodsList() {
-    setState(() {
-      foodsList.sort((a, b) => a.expirationDate.compareTo(b.expirationDate));
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
-
+    final foodProvider = Provider.of<FoodProvider>(context);
 
     return Scaffold(
       appBar: AppBar(
@@ -138,39 +96,44 @@ class _MyHomePageState extends State<MyHomePage> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
             Expanded(
-              child: ListView.builder(
-                itemCount: foodsList.length,
-                itemBuilder: (context, index) {
-                  int daysToExpire = foodsList[index].expirationDate.difference(DateTime.now()).inDays;
-                  Color subtitleColor; 
+              child: Consumer<FoodProvider>(  
+                builder: (context, foodProvider, child) {  
+                  return ListView.builder(
+                    itemCount: foodProvider.foodsList.length,
+                    itemBuilder: (context, index) {
+                      final food = foodProvider.foodsList[index];
+                      int daysToExpire = food.expirationDate.difference(DateTime.now()).inDays;
+                      Color subtitleColor; 
 
-                  if (daysToExpire <= 3) {
-                    subtitleColor = Colors.red; // Couleur rouge si la date d'expiration est proche (3 jours ou moins)
-                  } else if (daysToExpire <= 7) {
-                    subtitleColor = Colors.orange; // Couleur orange si la date d'expiration est dans une semaine ou moins
-                  } else {
-                    subtitleColor = Colors.green; // Couleur verte si la date d'expiration est plus éloignée
-                  }
+                      if (daysToExpire <= 3) {
+                        subtitleColor = Colors.red; // Couleur rouge si la date d'expiration est proche (3 jours ou moins)
+                      } else if (daysToExpire <= 7) {
+                        subtitleColor = Colors.orange; // Couleur orange si la date d'expiration est dans une semaine ou moins
+                      } else {
+                        subtitleColor = Colors.green; // Couleur verte si la date d'expiration est plus éloignée
+                      }
 
-                  return ListTile(
-                    tileColor: Colors.grey[200],// Couleur de fond alternée
-                    title: Text(
-                      foodsList[index].name,
-                      style: TextStyle(color: Colors.black), // Couleur du texte
-                    ),
-                    subtitle: Text(
-                      'Expire dans $daysToExpire jours, le : ${DateFormat('dd/MM/yyyy').format(foodsList[index].expirationDate)}',
-                      style: TextStyle(color: subtitleColor), // Couleur du sous-texte
-                    ),
-                    leading: IconButton(
-                      icon: Icon(Icons.delete, color: Colors.black), // Couleur de l'icône
-                      onPressed: () {
-                        _removeFood(index);
-                        print('Suppression de l\'élément à l\'index $index');
-                      },
-                    ),
+                      return ListTile(
+                        tileColor: Colors.grey[200],// Couleur de fond alternée
+                        title: Text(
+                          food.name,
+                          style: TextStyle(color: Colors.black), // Couleur du texte
+                        ),
+                        subtitle: Text(
+                          'Expire dans $daysToExpire jours, le : ${DateFormat('dd/MM/yyyy').format(food.expirationDate)}',
+                          style: TextStyle(color: subtitleColor), // Couleur du sous-texte
+                        ),
+                        leading: IconButton(
+                          icon: Icon(Icons.delete, color: Colors.black), // Couleur de l'icône
+                          onPressed: () {
+                            foodProvider.removeFood(index);
+                            print('Suppression de l\'élément à l\'index $index');
+                          },
+                        ),
+                      );
+                    },
                   );
-                },
+                }
               ),
             ),
             Padding(
@@ -181,7 +144,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     Expanded(
                       flex: 5,
                       child: TextField(
-                        controller: _textController,
+                        controller: foodProvider.textController,
                         decoration: InputDecoration(
                           hintText: 'Nom de l\'aliment',
                           border: OutlineInputBorder(),
@@ -192,7 +155,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     Expanded(
                       flex: 2,
                       child: TextField(
-                        controller: _dateController,
+                        controller: foodProvider.dateController,
                         decoration: InputDecoration(
                           hintText: 'DLC',
                           border: OutlineInputBorder(),
@@ -202,10 +165,14 @@ class _MyHomePageState extends State<MyHomePage> {
                       ),
                     ),
                     SizedBox(width: 16.0), // Espace entre le texte et le bouton
-                    FloatingActionButton(
-                      onPressed: _addFood,
-                      tooltip: 'Add',
-                      child: const Icon(Icons.add),
+                    IconButton(
+                      icon: const Icon(Icons.add),
+                      onPressed: () {
+                        foodProvider.addFood(foodProvider.textController.text, foodProvider.dateController.text);
+                        foodProvider.textController.clear();
+                        foodProvider.dateController.clear();
+                        FocusScope.of(context).unfocus();
+                      },
                     ),
                   ],
                 ),
@@ -219,9 +186,10 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   void dispose() {
+    final foodProvider = Provider.of<FoodProvider>(context);
     // Nettoyez le contrôleur lorsque le widget est détruit
-    _textController.dispose();
-    _dateController.dispose();
+    foodProvider.textController.dispose();
+    foodProvider.dateController.dispose();
     super.dispose();
   }
 }

@@ -472,8 +472,14 @@ class _DlcScannerPageState extends State<DlcScannerPage> {
             width: 280,
             height: 120,
             decoration: BoxDecoration(
-              border: Border.all(color: Colors.white, width: 2),
-              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFF60D394), width: 3),
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF60D394).withValues(alpha: 0.35),
+                  blurRadius: 16,
+                ),
+              ],
             ),
           ),
         ),

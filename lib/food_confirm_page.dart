@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
 import 'dlc_scanner_page.dart';
 import 'food.dart';
+import 'theme/food_connect_theme.dart';
 
 class FoodDraft {
   final String name;
@@ -95,42 +97,78 @@ class _FoodConfirmPageState extends State<FoodConfirmPage> {
   @override
   Widget build(BuildContext context) {
     final dateLabel = DateFormat('dd/MM/yyyy').format(_expirationDate);
+    final days = _expirationDate
+        .difference(DateTime(
+          DateTime.now().year,
+          DateTime.now().month,
+          DateTime.now().day,
+        ))
+        .inDays;
+    final urgency = FoodConnectTheme.urgencyColor(days);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Confirmer l\'ajout'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
       ),
       body: ListView(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
         children: [
           if (widget.draft.imageUrl != null &&
               widget.draft.imageUrl!.isNotEmpty) ...[
             Center(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.network(
-                  widget.draft.imageUrl!,
-                  height: 160,
-                  fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) => const Icon(
-                    Icons.image_not_supported,
-                    size: 64,
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(FoodConnectTheme.radiusMd),
+                  boxShadow: [
+                    BoxShadow(
+                      color: FcColors.emerald.withValues(alpha: 0.2),
+                      blurRadius: 20,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius:
+                      BorderRadius.circular(FoodConnectTheme.radiusMd),
+                  child: Image.network(
+                    widget.draft.imageUrl!,
+                    height: 160,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) => Container(
+                      height: 120,
+                      width: 120,
+                      color: FcColors.surfaceSoft,
+                      child: const Icon(
+                        Icons.image_not_supported_rounded,
+                        size: 48,
+                        color: FcColors.inkMuted,
+                      ),
+                    ),
                   ),
                 ),
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
           ],
           TextField(
             controller: _nameController,
             textCapitalization: TextCapitalization.sentences,
             decoration: const InputDecoration(
               labelText: 'Nom du produit',
-              border: OutlineInputBorder(),
             ),
           ),
-          const SizedBox(height: 16),
-          const Text('Lieu de stockage'),
+          const SizedBox(height: 20),
+          Text(
+            'Lieu de stockage',
+            style: GoogleFonts.nunito(
+              fontWeight: FontWeight.w700,
+              color: FcColors.inkMuted,
+            ),
+          ),
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
@@ -140,45 +178,73 @@ class _FoodConfirmPageState extends State<FoodConfirmPage> {
                 avatar: Icon(location.icon, size: 18),
                 label: Text(location.label),
                 selected: _location == location,
+                showCheckmark: false,
                 onSelected: (_) => setState(() => _location = location),
               );
             }).toList(),
           ),
-          const SizedBox(height: 16),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('Date limite (DLC)'),
-            subtitle: Text(
-              dateLabel,
-              style: Theme.of(context).textTheme.titleMedium,
+          const SizedBox(height: 20),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: FoodConnectTheme.urgencySoft(days),
+              borderRadius: BorderRadius.circular(FoodConnectTheme.radiusMd),
+              border: Border.all(color: urgency.withValues(alpha: 0.35)),
             ),
-            trailing: Wrap(
-              spacing: 4,
+            child: Row(
               children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Date limite (DLC)',
+                        style: GoogleFonts.nunito(
+                          fontWeight: FontWeight.w700,
+                          color: FcColors.inkMuted,
+                          fontSize: 13,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        dateLabel,
+                        style: GoogleFonts.nunito(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w900,
+                          color: urgency,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
                 IconButton(
                   tooltip: 'Scanner la DLC',
                   onPressed: _scanDlc,
-                  icon: const Icon(Icons.document_scanner),
+                  icon: const Icon(Icons.document_scanner_rounded),
                 ),
                 IconButton(
                   tooltip: 'Choisir une date',
                   onPressed: _pickDate,
-                  icon: const Icon(Icons.calendar_today),
+                  icon: const Icon(Icons.calendar_month_rounded),
                 ),
               ],
             ),
           ),
           if (widget.draft.barcode != null) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
             Text(
               'Code : ${widget.draft.barcode}',
-              style: Theme.of(context).textTheme.bodySmall,
+              style: GoogleFonts.nunito(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: FcColors.inkMuted,
+              ),
             ),
           ],
           const SizedBox(height: 28),
           FilledButton.icon(
             onPressed: _confirm,
-            icon: const Icon(Icons.check),
+            icon: const Icon(Icons.check_rounded),
             label: const Text('Ajouter à ma liste'),
           ),
           const SizedBox(height: 8),

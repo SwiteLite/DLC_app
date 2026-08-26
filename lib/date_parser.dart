@@ -79,9 +79,39 @@ class DateParser {
       }
     }
 
-    final dates = found.values.toList()
-      ..sort((a, b) => a.date.compareTo(b.date));
+    final dates = found.values.toList();
+    dates.sort((a, b) {
+      final scoreCompare =
+          _contextScore(normalized, b).compareTo(_contextScore(normalized, a));
+      if (scoreCompare != 0) return scoreCompare;
+      return a.date.compareTo(b.date);
+    });
     return dates;
+  }
+
+  /// Prefer dates near DLC / EXP / "à consommer" keywords.
+  static int _contextScore(String text, ParsedDate parsed) {
+    final index = text.toLowerCase().indexOf(parsed.matchedText.toLowerCase());
+    if (index < 0) return 0;
+    final start = (index - 28).clamp(0, text.length);
+    final end = (index + parsed.matchedText.length + 12).clamp(0, text.length);
+    final window = text.substring(start, end).toLowerCase();
+
+    var score = 0;
+    const keywords = [
+      'dlc',
+      'ddm',
+      'exp',
+      'best before',
+      'a consommer',
+      'à consommer',
+      'consommer jusqu',
+      'date limite',
+    ];
+    for (final keyword in keywords) {
+      if (window.contains(keyword)) score += 10;
+    }
+    return score;
   }
 
   static DateTime? bestCandidate(String rawText) {

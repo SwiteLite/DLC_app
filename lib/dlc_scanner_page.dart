@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
+import 'package:image/image.dart' as img;
 import 'package:intl/intl.dart';
 
 import 'date_parser.dart';
@@ -36,6 +37,9 @@ class _DlcScannerPageState extends State<DlcScannerPage> {
   String _lockedRawText = '';
   List<ParsedDate> _candidates = const [];
   DateTime? _lastProcessedAt;
+  double _minZoom = 1;
+  double _maxZoom = 1;
+  double _currentZoom = 1.5;
 
   final List<String> _logLines = [];
   final ScrollController _logScrollController = ScrollController();
@@ -79,14 +83,19 @@ class _DlcScannerPageState extends State<DlcScannerPage> {
         return;
       }
 
+      _minZoom = await controller.getMinZoomLevel();
+      _maxZoom = await controller.getMaxZoomLevel();
+      _currentZoom = (_minZoom + 0.8).clamp(_minZoom, _maxZoom);
+      await controller.setZoomLevel(_currentZoom);
+
       await controller.startImageStream(_processCameraImage);
 
       setState(() {
         _cameraController = controller;
         _initializing = false;
-        _statusMessage = 'Pointez la DLC — détection en direct.';
+        _statusMessage = 'Cadrez la DLC dans le cadre (zoom ${_currentZoom.toStringAsFixed(1)}x).';
       });
-      _appendLog('Caméra prête. OCR temps réel démarré.');
+      _appendLog('Caméra prête. OCR temps réel démarré (zoom ${_currentZoom.toStringAsFixed(1)}x).');
     } catch (_) {
       if (!mounted) return;
       setState(() {
@@ -284,14 +293,16 @@ class _DlcScannerPageState extends State<DlcScannerPage> {
     try {
       await controller.stopImageStream();
       final picture = await controller.takePicture();
+      final croppedPath = await _cropCenterFrame(picture.path);
+      final ocrPath = croppedPath ?? picture.path;
       final recognized =
-          await _textRecognizer.processImage(InputImage.fromFilePath(picture.path));
+          await _textRecognizer.processImage(InputImage.fromFilePath(ocrPath));
       final dates = DateParser.extractDates(recognized.text);
 
       _appendLog(
         recognized.text.trim().isEmpty
-            ? 'Photo: aucun texte'
-            : 'Photo OCR: ${recognized.text.trim()}',
+            ? 'Photo crop: aucun texte'
+            : 'Photo crop OCR: ${recognized.text.trim()}',
       );
 
       if (!mounted) return;
@@ -334,6 +345,46 @@ class _DlcScannerPageState extends State<DlcScannerPage> {
         await controller.startImageStream(_processCameraImage);
       } catch (_) {}
     }
+  }
+
+  Future<String?> _cropCenterFrame(String sourcePath) async {
+    try {
+      final bytes = await File(sourcePath).readAsBytes();
+      final decoded = img.decodeImage(bytes);
+      if (decoded == null) return null;
+
+      // Approx. the on-screen white frame: ~70% width, ~28% height, centered.
+      final cropW = (decoded.width * 0.70).round().clamp(1, decoded.width);
+      final cropH = (decoded.height * 0.28).round().clamp(1, decoded.height);
+      final left = ((decoded.width - cropW) / 2).round();
+      final top = ((decoded.height - cropH) / 2).round();
+
+      final cropped = img.copyCrop(
+        decoded,
+        x: left,
+        y: top,
+        width: cropW,
+        height: cropH,
+      );
+
+      // Mild contrast boost helps stamped dates.
+      final enhanced = img.adjustColor(cropped, contrast: 1.15);
+      final outPath = '${sourcePath}_crop.jpg';
+      await File(outPath).writeAsBytes(img.encodeJpg(enhanced, quality: 95));
+      _appendLog('Crop cadre central appliqué (${cropW}x$cropH).');
+      return outPath;
+    } catch (e) {
+      _appendLog('Crop impossible: $e');
+      return null;
+    }
+  }
+
+  Future<void> _setZoom(double value) async {
+    final controller = _cameraController;
+    if (controller == null || !controller.value.isInitialized) return;
+    final zoom = value.clamp(_minZoom, _maxZoom);
+    await controller.setZoomLevel(zoom);
+    setState(() => _currentZoom = zoom);
   }
 
   Future<void> _toggleTorch() async {
@@ -446,6 +497,23 @@ class _DlcScannerPageState extends State<DlcScannerPage> {
                   textAlign: TextAlign.center,
                   style: const TextStyle(color: Colors.white, fontSize: 16),
                 ),
+                if (_maxZoom > _minZoom) ...[
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      const Icon(Icons.zoom_out, color: Colors.white70, size: 18),
+                      Expanded(
+                        child: Slider(
+                          value: _currentZoom.clamp(_minZoom, _maxZoom),
+                          min: _minZoom,
+                          max: _maxZoom,
+                          onChanged: _setZoom,
+                        ),
+                      ),
+                      const Icon(Icons.zoom_in, color: Colors.white70, size: 18),
+                    ],
+                  ),
+                ],
                 if (_hasLockedDates) ...[
                   const SizedBox(height: 8),
                   Wrap(
@@ -526,7 +594,7 @@ class _DlcScannerPageState extends State<DlcScannerPage> {
           mainAxisSize: MainAxisSize.min,
           children: [
             const Text(
-              'Détection OCR (temps réel)',
+              'OCR live (vert) vs verrouillé (ambre)',
               style: TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
@@ -535,29 +603,47 @@ class _DlcScannerPageState extends State<DlcScannerPage> {
             ),
             if (_hasLockedDates) ...[
               const SizedBox(height: 6),
-              Text(
-                'Verrouillé : ${_lockedDates.map((d) => DateFormat('dd/MM/yyyy').format(d.date)).join(', ')}'
-                '${_lockedRawText.isNotEmpty ? '\n« ${_lockedRawText.length > 80 ? '${_lockedRawText.substring(0, 80)}…' : _lockedRawText} »' : ''}',
-                style: const TextStyle(
-                  color: Colors.amberAccent,
-                  fontFamily: 'monospace',
-                  fontSize: 12,
-                  height: 1.3,
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.amber.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.amberAccent),
+                ),
+                child: Text(
+                  'VERROUILLÉ : ${_lockedDates.map((d) => DateFormat('dd/MM/yyyy').format(d.date)).join(', ')}'
+                  '${_lockedRawText.isNotEmpty ? '\n« ${_lockedRawText.length > 80 ? '${_lockedRawText.substring(0, 80)}…' : _lockedRawText} »' : ''}',
+                  style: const TextStyle(
+                    color: Colors.amberAccent,
+                    fontFamily: 'monospace',
+                    fontSize: 12,
+                    height: 1.3,
+                  ),
                 ),
               ),
             ],
             const SizedBox(height: 6),
-            Text(
-              _liveRawText.isEmpty
-                  ? 'En attente de texte…'
-                  : _liveRawText,
-              maxLines: 4,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Colors.lightGreenAccent,
-                fontFamily: 'monospace',
-                fontSize: 12,
-                height: 1.3,
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.green.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.lightGreenAccent),
+              ),
+              child: Text(
+                _liveRawText.isEmpty
+                    ? 'LIVE : en attente de texte…'
+                    : 'LIVE : $_liveRawText',
+                maxLines: 4,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.lightGreenAccent,
+                  fontFamily: 'monospace',
+                  fontSize: 12,
+                  height: 1.3,
+                ),
               ),
             ),
             const SizedBox(height: 8),

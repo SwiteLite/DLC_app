@@ -1,3 +1,4 @@
+import 'package:app_flutter/database/app_database.dart';
 import 'package:app_flutter/dlc_scanner_page.dart';
 import 'package:app_flutter/food.dart';
 import 'package:app_flutter/food_confirm_page.dart';
@@ -13,9 +14,13 @@ import 'package:provider/provider.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await NotificationService.instance.init();
+
+  final database = AppDatabase();
+  await database.migrateFromSharedPreferencesIfNeeded();
+
   runApp(
     ChangeNotifierProvider(
-      create: (context) => FoodProvider(),
+      create: (context) => FoodProvider(database),
       child: const MyApp(),
     ),
   );

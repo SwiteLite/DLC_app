@@ -1,22 +1,30 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
 import 'package:intl/intl.dart';
+
+import 'database/app_database.dart';
 import 'food.dart';
 import 'notification_service.dart';
 
 class FoodProvider extends ChangeNotifier {
+  FoodProvider(this._db) {
+    _loadFoodsList();
+  }
+
+  final AppDatabase _db;
+
   List<Food> _foodsList = [];
   bool _showHistory = false;
   String _searchQuery = '';
   FoodUrgencyFilter _urgencyFilter = FoodUrgencyFilter.all;
   FoodLocation? _locationFilter;
+  bool _loading = true;
 
   final TextEditingController _textController = TextEditingController();
   final TextEditingController _dateController = TextEditingController();
   final TextEditingController _searchController = TextEditingController();
 
   List<Food> get foodsList => _foodsList;
+  bool get isLoading => _loading;
 
   List<Food> get visibleFoods {
     return _foodsList.where((food) {
@@ -64,10 +72,6 @@ class FoodProvider extends ChangeNotifier {
   TextEditingController get dateController => _dateController;
   TextEditingController get searchController => _searchController;
 
-  FoodProvider() {
-    _loadFoodsList();
-  }
-
   void setShowHistory(bool value) {
     if (_showHistory == value) return;
     _showHistory = value;
@@ -102,24 +106,17 @@ class FoodProvider extends ChangeNotifier {
   }
 
   Future<void> _loadFoodsList() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? foodsJson = prefs.getString('foodsList');
-    if (foodsJson != null) {
-      List<dynamic> foodsMap = jsonDecode(foodsJson);
-      _foodsList = foodsMap.map((item) => Food.fromJson(item)).toList();
-      _sortFoodsList();
-      notifyListeners();
-      await NotificationService.instance.rescheduleAll(
-        _foodsList.where((f) => f.status == FoodStatus.active),
-      );
-    }
-  }
+    _loading = true;
+    notifyListeners();
 
-  Future<void> _saveFoodsList() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String foodsJson =
-        jsonEncode(_foodsList.map((item) => item.toJson()).toList());
-    await prefs.setString('foodsList', foodsJson);
+    _foodsList = await _db.getAllFoods();
+    _sortFoodsList();
+    _loading = false;
+    notifyListeners();
+
+    await NotificationService.instance.rescheduleAll(
+      _foodsList.where((f) => f.status == FoodStatus.active),
+    );
   }
 
   Future<void> addFood({
@@ -142,14 +139,13 @@ class FoodProvider extends ChangeNotifier {
       barcode: barcode,
     );
 
+    await _db.upsertFood(food);
     _foodsList.add(food);
     _sortFoodsList();
-    await _saveFoodsList();
     await NotificationService.instance.syncFoodReminders(food);
     notifyListeners();
   }
 
-  /// Legacy helper used by existing text-field flow.
   Future<void> addFoodFromText(String name, String dateText) async {
     if (name.trim().isEmpty || dateText.isEmpty) return;
     final expirationDate = DateFormat('dd/MM/yyyy').parse(dateText);
@@ -160,9 +156,9 @@ class FoodProvider extends ChangeNotifier {
     final index = _foodsList.indexWhere((food) => food.id == updated.id);
     if (index < 0) return;
 
+    await _db.upsertFood(updated);
     _foodsList[index] = updated;
     _sortFoodsList();
-    await _saveFoodsList();
     await NotificationService.instance.syncFoodReminders(updated);
     notifyListeners();
   }
@@ -172,15 +168,15 @@ class FoodProvider extends ChangeNotifier {
     if (index < 0) return;
 
     final updated = _foodsList[index].copyWith(status: status);
+    await _db.upsertFood(updated);
     _foodsList[index] = updated;
-    await _saveFoodsList();
     await NotificationService.instance.syncFoodReminders(updated);
     notifyListeners();
   }
 
   Future<void> removeFoodById(String id) async {
+    await _db.deleteFood(id);
     _foodsList.removeWhere((food) => food.id == id);
-    await _saveFoodsList();
     await NotificationService.instance.cancelFoodReminders(id);
     notifyListeners();
   }

@@ -37,9 +37,14 @@ class FoodProvider extends ChangeNotifier {
   }
 
   void addFood(String name, String dateText) {
-    if (name.isNotEmpty && dateText.isNotEmpty) {
+    final trimmedName = name.trim();
+    if (trimmedName.isNotEmpty && dateText.isNotEmpty) {
       DateTime expirationDate = DateFormat('dd/MM/yyyy').parse(dateText);
-      _foodsList.add(Food(name: name, expirationDate: expirationDate, dateAdded: DateTime.now()));
+      _foodsList.add(Food(
+        name: trimmedName,
+        expirationDate: expirationDate,
+        dateAdded: DateTime.now(),
+      ));
       _sortFoodsList();
       _saveFoodsList();
       notifyListeners();

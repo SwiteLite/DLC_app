@@ -45,5 +45,7 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Autorisez la caméra pour scanner les codes-barres et QR codes des produits.</string>
 </dict>
 </plist>

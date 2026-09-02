@@ -18,6 +18,15 @@ abstract final class FcColors {
   static const outline = Color(0xFFC5E8D4);
 }
 
+abstract final class FcColorsDark {
+  static const canvas = Color(0xFF0F1F18);
+  static const surface = Color(0xFF1A2E24);
+  static const surfaceSoft = Color(0xFF243B30);
+  static const ink = Color(0xFFE8F5EC);
+  static const inkMuted = Color(0xFF9BB8A8);
+  static const outline = Color(0xFF3D5C4A);
+}
+
 abstract final class FoodConnectTheme {
   static const radiusSm = 14.0;
   static const radiusMd = 20.0;
@@ -213,6 +222,137 @@ abstract final class FoodConnectTheme {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(radiusLg),
         ),
+      ),
+    );
+  }
+
+  static ThemeData dark() {
+    final baseText = GoogleFonts.nunitoTextTheme(ThemeData.dark().textTheme);
+    final colorScheme = ColorScheme(
+      brightness: Brightness.dark,
+      primary: FcColors.emerald,
+      onPrimary: FcColorsDark.ink,
+      primaryContainer: const Color(0xFF2A5C40),
+      onPrimaryContainer: FcColorsDark.ink,
+      secondary: FcColors.jasmine,
+      onSecondary: FcColorsDark.canvas,
+      secondaryContainer: const Color(0xFF4A4020),
+      onSecondaryContainer: FcColors.jasmine,
+      tertiary: FcColors.salmon,
+      onTertiary: FcColorsDark.canvas,
+      tertiaryContainer: const Color(0xFF5C3A30),
+      onTertiaryContainer: FcColors.salmon,
+      error: FcColors.coral,
+      onError: Colors.white,
+      errorContainer: const Color(0xFF5C2820),
+      onErrorContainer: FcColors.coral,
+      surface: FcColorsDark.surface,
+      onSurface: FcColorsDark.ink,
+      onSurfaceVariant: FcColorsDark.inkMuted,
+      outline: FcColorsDark.outline,
+      outlineVariant: const Color(0xFF2A4034),
+      shadow: Colors.black54,
+      scrim: Colors.black87,
+      inverseSurface: FcColorsDark.ink,
+      onInverseSurface: FcColorsDark.canvas,
+      inversePrimary: FcColors.emerald,
+      surfaceTint: FcColors.emerald,
+    );
+
+    return ThemeData(
+      useMaterial3: true,
+      colorScheme: colorScheme,
+      scaffoldBackgroundColor: FcColorsDark.canvas,
+      textTheme: baseText.apply(
+        bodyColor: FcColorsDark.ink,
+        displayColor: FcColorsDark.ink,
+      ),
+      appBarTheme: AppBarTheme(
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        centerTitle: false,
+        backgroundColor: Colors.transparent,
+        foregroundColor: FcColorsDark.ink,
+        titleTextStyle: GoogleFonts.nunito(
+          fontSize: 22,
+          fontWeight: FontWeight.w800,
+          color: FcColorsDark.ink,
+        ),
+      ),
+      cardTheme: CardThemeData(
+        color: FcColorsDark.surface,
+        elevation: 0,
+        margin: EdgeInsets.zero,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(radiusMd),
+        ),
+      ),
+      chipTheme: ChipThemeData(
+        backgroundColor: FcColorsDark.surfaceSoft,
+        selectedColor: FcColors.emerald,
+        labelStyle: GoogleFonts.nunito(
+          fontWeight: FontWeight.w600,
+          color: FcColorsDark.ink,
+          fontSize: 13,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(radiusPill),
+          side: BorderSide(color: FcColorsDark.outline),
+        ),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: FcColorsDark.surface,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(radiusMd),
+          borderSide: BorderSide(color: FcColorsDark.outline),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(radiusMd),
+          borderSide: BorderSide(color: FcColorsDark.outline),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(radiusMd),
+          borderSide: const BorderSide(color: FcColors.emerald, width: 2),
+        ),
+        hintStyle: GoogleFonts.nunito(color: FcColorsDark.inkMuted),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor: FcColors.emerald,
+          foregroundColor: FcColorsDark.canvas,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(radiusPill),
+          ),
+        ),
+      ),
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: FcColorsDark.surfaceSoft,
+        contentTextStyle: GoogleFonts.nunito(color: FcColorsDark.ink),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(radiusSm),
+        ),
+      ),
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: FcColorsDark.surface,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(radiusLg),
+          ),
+        ),
+        showDragHandle: true,
+      ),
+      floatingActionButtonTheme: FloatingActionButtonThemeData(
+        backgroundColor: FcColors.emerald,
+        foregroundColor: FcColorsDark.canvas,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(radiusLg),
+        ),
+      ),
+      progressIndicatorTheme: const ProgressIndicatorThemeData(
+        color: FcColors.emerald,
       ),
     );
   }

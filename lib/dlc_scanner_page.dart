@@ -44,6 +44,8 @@ class _DlcScannerPageState extends State<DlcScannerPage> {
   final List<String> _logLines = [];
   final ScrollController _logScrollController = ScrollController();
 
+  bool _showDebugPanel = false;
+
   bool get _hasLockedDates => _lockedDates.isNotEmpty;
 
   @override
@@ -419,6 +421,13 @@ class _DlcScannerPageState extends State<DlcScannerPage> {
         title: const Text('Scanner la DLC'),
         actions: [
           IconButton(
+            tooltip: _showDebugPanel ? 'Masquer debug OCR' : 'Afficher debug OCR',
+            icon: Icon(
+              _showDebugPanel ? Icons.bug_report : Icons.bug_report_outlined,
+            ),
+            onPressed: () => setState(() => _showDebugPanel = !_showDebugPanel),
+          ),
+          IconButton(
             tooltip: 'Torche',
             icon: const Icon(Icons.flash_on),
             onPressed: _toggleTorch,
@@ -483,12 +492,13 @@ class _DlcScannerPageState extends State<DlcScannerPage> {
             ),
           ),
         ),
-        Positioned(
-          left: 12,
-          right: 12,
-          top: 12,
-          child: _buildLiveLogPanel(),
-        ),
+        if (_showDebugPanel)
+          Positioned(
+            left: 12,
+            right: 12,
+            top: 12,
+            child: _buildLiveLogPanel(),
+          ),
         Align(
           alignment: Alignment.bottomCenter,
           child: Container(

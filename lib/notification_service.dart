@@ -12,8 +12,8 @@ class NotificationService {
   final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
 
-  static const _channelId = 'dlc_reminders';
-  static const _channelName = 'Rappels DLC';
+  static const _channelId = 'food_connect_reminders';
+  static const _channelName = 'Rappels FoodConnect';
   static const _reminderOffsets = [7, 3, 1, 0];
 
   bool _initialized = false;
@@ -52,6 +52,7 @@ class NotificationService {
   }
 
   Future<void> syncFoodReminders(Food food) async {
+    if (!_initialized) return;
     await cancelFoodReminders(food.id);
 
     if (food.status != FoodStatus.active) return;
@@ -102,12 +103,14 @@ class NotificationService {
   }
 
   Future<void> cancelFoodReminders(String foodId) async {
+    if (!_initialized) return;
     for (final daysBefore in _reminderOffsets) {
       await _plugin.cancel(_notificationId(foodId, daysBefore));
     }
   }
 
   Future<void> rescheduleAll(Iterable<Food> foods) async {
+    if (!_initialized) return;
     for (final food in foods) {
       await syncFoodReminders(food);
     }
